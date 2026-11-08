@@ -13,10 +13,11 @@ description: >-
 
 1. `create_project`：给一个项目目录和 style_brief。
 2. `save_draft`：调用方自己写初稿，存进去。稿子一旦存下就不再改，改了就存新版本。
-3. `launch_role_cards`：需要时才派卡。C 只收集材料，A 只审计一项职责，P 只改已点名的段落。验收只派一张。传 `lanes` 就按通道组发卡，每张卡用自己的 profile、model、effort。不传 `lanes` 走 `policy.json` 的单个 profile。两组通道：`minimax` 用 `CC-U` / `MiniMax-M3.1-Flash`，8 到 10 张；`openrouter` 用 `openrouter/` 前缀的模型，最多 20 张。`CC-U-OR-free` 和 `CC-U-OR-free-nemotron` 只接受它们钉死的免费模型。CX 档、`MINIMAX-U`、`MINIMAX-L`、超限张数和错配模型直接拒绝，不截断、不换通道。
-4. `run_decision_audit`：本地逐项判断。它只标风险，不判定事实真假。
+3. `launch_role_cards`：需要时才派卡。C 只收集材料，A 只审计一项职责，P 只改已点名的段落。传 `lanes` 就按通道组发卡，每张卡用自己的 profile、model、effort。可用 lane 包括 `minimax`、`cx` 和 `openrouter`。`cx` 使用 `CX-U-OFFICIAL` 与 `gpt-6-luna`，`openrouter` 使用 `OC-U` 与 `openrouter/xiaohongshu/dot-3-note-preview:free`。超限张数和错配模型直接拒绝，不截断、不换通道。
+4. `run_decision_audit`：本地逐项判断。它只标风险，不判定事实真假。判断模型不可用或输出 invalid 时，必须形成 open issue，不能继续当成无问题。
 5. `get_status`：看 `open_issues`。大于 0 就要先处理，或者明确确认后再往下。
 6. `collect_results`：从 `cards/<id>/work/report.md` 收回报告。
-7. `finalize`：还有未关闭问题时必须带 `confirm=true`。
+7. Polish 结果需要通过 `save_draft` 写成新版本，再运行审计和 `collect_results`。
+8. `finalize`：还有未关闭问题时必须带 `confirm=true`。最终稿必须来自确认后的最新版本。
 
 卡没派出去就看 `cards/<id>/launch.log`，状态会是 `launch_failed`，不要当成已发出。

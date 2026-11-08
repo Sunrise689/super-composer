@@ -4,16 +4,17 @@ from pathlib import Path
 from decision import run_decision_job
 
 CARD_LAUNCHER = Path(os.environ.get("AGENT_LAUNCHER_ROOT", str(Path.home() / ".agent-launcher")))
-MCP_CALL = CARD_LAUNCHER/'tools'/'mcp_call.py'
+MCP_CALL = Path(os.environ.get("SUPER_COMPOSER_MCP_CALL", str(CARD_LAUNCHER / 'tools' / 'mcp_call.py')))
 POLICY_PATH = Path(__file__).resolve().parent/'policy.json'
 PROMPTS = Path(__file__).resolve().parent/'prompts'
 ROLE_PROMPT = {'C':'composer.md','A':'auditor.md','P':'polish.md'}
 PINNED_FREE_MODEL = 'openrouter/nvidia/nemotron-3-ultra-550b-a55b:free'
-ALLOWED_PROFILES = {'CC-U','CC-U-OR-free','CC-U-OR-free-nemotron'}
+ALLOWED_PROFILES = {'CC-U','CC-U-OR-free','CC-U-OR-free-nemotron','OC-U','CX-U-OFFICIAL'}
 PINNED_PROFILES = {'CC-U-OR-free','CC-U-OR-free-nemotron'}
 FALLBACK_LANES = {
     'minimax': {'profile_id':'CC-U','model':'MiniMax-M3.1-Flash','min':8,'max':10},
-    'openrouter': {'profile_id':'CC-U','model':PINNED_FREE_MODEL,'min':1,'max':20},
+    'cx': {'profile_id':'CX-U-OFFICIAL','model':'gpt-6-luna','min':1,'max':10},
+    'openrouter': {'profile_id':'OC-U','model':'openrouter/xiaohongshu/dot-3-note-preview:free','min':1,'max':20},
 }
 
 class SuperComposer:
@@ -53,6 +54,8 @@ CREATE TABLE IF NOT EXISTS issues (id INTEGER PRIMARY KEY AUTOINCREMENT, revisio
                 raise ValueError(f'{profile} is not an allowed lane profile')
             if name=='minimax' and model!='MiniMax-M3.1-Flash' and lane.get('model') is None:
                 raise ValueError('minimax lane only accepts MiniMax-M3.1-Flash')
+            if name=='cx' and (profile != 'CX-U-OFFICIAL' or model != 'gpt-6-luna'):
+                raise ValueError('cx lane requires CX-U-OFFICIAL with gpt-6-luna')
             if name=='openrouter' and not str(model).startswith('openrouter/'):
                 raise ValueError('openrouter lane only accepts an openrouter/ model')
             if profile in PINNED_PROFILES and model!=PINNED_FREE_MODEL:
@@ -131,7 +134,11 @@ CREATE TABLE IF NOT EXISTS issues (id INTEGER PRIMARY KEY AUTOINCREMENT, revisio
         result=run_decision_job(Path(row['path']),out,parallel,force_all_pairs)
         db=sqlite3.connect(root/'composer.sqlite'); db.row_factory=sqlite3.Row
         added=self._record_hits(db,row['revision'],out/'decision-results.json')
-        db.execute('UPDATE jobs SET status="finished" WHERE job_id=?',(job_id,)); db.commit(); db.close()
+        invalid=int(result.get('invalid') or 0)
+        if invalid:
+            db.execute('INSERT INTO issues(revision,kind,location,text,status) VALUES(?,?,?,?,"open")',(row['revision'],'decision_unavailable','decision',f'{invalid} decision checks were invalid or unavailable'))
+            added += 1
+        db.execute('UPDATE jobs SET status=? WHERE job_id=?',('finished_with_issues' if invalid else 'finished',job_id)); db.commit(); db.close()
         result['issues_added']=added
         return {'job_id':job_id,'revision':row['revision'],'result':result}
     def _record_hits(self, db, revision, result_path):
@@ -164,7 +171,8 @@ CREATE TABLE IF NOT EXISTS issues (id INTEGER PRIMARY KEY AUTOINCREMENT, revisio
             db.close(); raise ValueError(f'{open_issues} open issues remain; pass confirm=true to finalize anyway')
         if not confirm:
             db.close(); raise ValueError('finalize requires confirm=true')
-        final=root/'final_article.md'; final.write_text(Path(row['path']).read_text(encoding='utf-8'),encoding='utf-8')
+        latest=row
+        final=root/'final_article.md'; final.write_text(Path(latest['path']).read_text(encoding='utf-8'),encoding='utf-8')
         db.execute('UPDATE project SET stage="finalized",updated_at=? WHERE id=1',(time.time(),)); db.commit(); db.close()
         status=self.get_status(project_dir); status['finalized_with_open_issues']=open_issues
         summary=root/'audit-summary.json'; summary.write_text(json.dumps(status,ensure_ascii=False,indent=2),encoding='utf-8')

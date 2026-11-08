@@ -68,10 +68,17 @@ class TestProject(unittest.TestCase):
         with tempfile.TemporaryDirectory() as d:
             sc=SuperComposer(); sc.create_project(d,{'genre':'test'}); sc.save_draft(d,'一句足够长的测试稿，用来发卡。','draft')
             base={'lanes':{'minimax':{'profile_id':'CC-U','model':'MiniMax-M3.1-Flash','min':8,'max':10},'openrouter':{'profile_id':'CC-U','model':'openrouter/nvidia/nemotron-3-ultra-550b-a55b:free','min':1,'max':20}}}
-            for lanes in ([{'name':'minimax','profile_id':'CX-U-OFFICIAL','count':8}],[{'name':'minimax','count':11}],[{'name':'openrouter','count':21}]):
+            for lanes in ([{'name':'minimax','count':11}],[{'name':'openrouter','count':21}],[{'name':'cx','profile_id':'CX-U-OFFICIAL','model':'wrong-model','count':1}]):
                 with self.assertRaises(ValueError): sc.launch_role_cards(d,'A',policy=base,lanes=lanes)
             self.assertEqual(list((Path(d)/'taskbooks').iterdir()),[])
             import gc; gc.collect()
+
+    def test_cx_lane_is_accepted(self):
+        with tempfile.TemporaryDirectory() as d:
+            sc=_offline(SuperComposer()); sc.create_project(d,{'genre':'test'}); sc.save_draft(d,'一句足够长的测试稿，用来发卡。','draft')
+            out=sc.launch_role_cards(d,'A',policy={'lanes':{'cx':{'profile_id':'CX-U-OFFICIAL','model':'gpt-6-luna','min':1,'max':10}}},lanes=[{'name':'cx','count':1}])
+            self.assertEqual(out['lanes'][0]['profile_id'],'CX-U-OFFICIAL')
+            self.assertEqual(out['lanes'][0]['model'],'gpt-6-luna')
 
     def test_without_lanes_policy_still_launches(self):
         with tempfile.TemporaryDirectory() as d:

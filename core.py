@@ -9,10 +9,10 @@ POLICY_PATH = Path(__file__).resolve().parent/'policy.json'
 PROMPTS = Path(__file__).resolve().parent/'prompts'
 ROLE_PROMPT = {'C':'composer.md','A':'auditor.md','P':'polish.md'}
 PINNED_FREE_MODEL = 'openrouter/nvidia/nemotron-3-ultra-550b-a55b:free'
-ALLOWED_PROFILES = {'CC-U','CC-U-OR-free','CC-U-OR-free-nemotron','OC-U','CX-U-OFFICIAL'}
+ALLOWED_PROFILES = {'CC-U','CC-U-OR-free','CC-U-OR-free-nemotron','MINIMAX-U','OC-U','CX-U-OFFICIAL'}
 PINNED_PROFILES = {'CC-U-OR-free','CC-U-OR-free-nemotron'}
 FALLBACK_LANES = {
-    'minimax': {'profile_id':'CC-U','model':'MiniMax-M3.1-Flash','min':8,'max':10},
+    'minimax': {'profile_id':'MINIMAX-U','model':'MiniMax-M3.1-Flash','min':8,'max':10},
     'cx': {'profile_id':'CX-U-OFFICIAL','model':'gpt-6-luna','min':1,'max':10},
     'openrouter': {'profile_id':'OC-U','model':'openrouter/xiaohongshu/dot-3-note-preview:free','min':1,'max':20},
 }
